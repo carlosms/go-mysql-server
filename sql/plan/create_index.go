@@ -1,6 +1,7 @@
 package plan
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -170,7 +171,7 @@ func (c *CreateIndex) RowIter(ctx *sql.Context) (sql.RowIter, error) {
 		"driver": index.Driver(),
 	})
 
-	createIndex := func() {
+	createIndex := func(ctx *sql.Context) {
 		c.createIndex(ctx, log, driver, index, iter, created, ready)
 		c.Catalog.ProcessList.Done(ctx.Pid())
 	}
@@ -178,9 +179,10 @@ func (c *CreateIndex) RowIter(ctx *sql.Context) (sql.RowIter, error) {
 	log.WithField("async", c.Async).Info("starting to save the index")
 
 	if c.Async {
-		go createIndex()
+		// This removes context cancellations or timeouts for the async task
+		go createIndex(ctx.WithContext(context.Background()))
 	} else {
-		createIndex()
+		createIndex(ctx)
 	}
 
 	return sql.RowsToRowIter(), nil
